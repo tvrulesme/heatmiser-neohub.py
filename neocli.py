@@ -9,7 +9,7 @@ import os
 from neohub import NeoHub, NeoDevice
 
 
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.WARN)
 
 
 def ok(what):
@@ -23,21 +23,21 @@ async def main(neo, cmd, args):
     await neo.async_setup()
 
     if cmd == "call":
-        print(json.dumps(await neo.call(json.loads(args[0])), sort_keys=True, indent=2))
+        print(json.dumps(await neo.call(json.loads(args[1])), sort_keys=True, indent=2))
         return 0
 
     if cmd == "stat":
-        print(json.dumps((await neo.update())[args[0]], sort_keys=True, indent=2))
+        print(json.dumps((await neo.update())[args[1]], sort_keys=True, indent=2))
         return 0
 
     if cmd == "set_diff":
-        return ok(await neo.set_diff(args[0], args[1]))
+        return ok(await neo.set_diff(args[1], args[2]))
 
     if cmd == "switch_on":
-        return (await neo.neoplugs()[args[0]].switch_on())
+        return (await neo.neoplugs()[args[1]].switch_on())
 
     if cmd == "switch_off":
-        return (await neo.neoplugs()[args[0]].switch_off())
+        return (await neo.neoplugs()[args[1]].switch_off())
 
     if cmd == "script":
         p = neo.neoplugs()["F1 Hall Plug"]
@@ -48,10 +48,10 @@ async def main(neo, cmd, args):
         print(repr(p))
 
     if cmd == "rename_zone":
-        return ok(await neo.zone_title(args[0], args[1]))
+        return ok(await neo.zone_title(args[1], args[2]))
 
     if cmd == "remove_zone":
-        return ok(await neo.remove_zone(args[0]))
+        return ok(await neo.remove_zone(args[1]))
 
     if cmd == "frost_on":
         return ok(await neo.frost_on(args[0]))
@@ -60,7 +60,7 @@ async def main(neo, cmd, args):
         return ok(await neo.frost_off(args[0]))
 
     if cmd == "set_program_mode":
-        return ok(await neo.set_program_mode(args[0]))
+        return ok(await neo.set_program_mode(args[1]))
 
     if cmd == "list":
         for name in neo.neostats():
@@ -94,17 +94,12 @@ async def main(neo, cmd, args):
 
 
 if __name__ == '__main__':
-    host = os.environ.get("NEOHUB_IP")
-    if host is None:
-        print("Please set the NEOHUB_IP environment variable")
-        print("eg: NEOHUB_IP=\"192.168.0.123\" %s ..." % sys.argv[0])
-        sys.exit(1)
 
     loop = asyncio.get_event_loop()
-    neo = NeoHub(host, 4242)
+    neo = NeoHub(sys.argv[1], 4242)
 
-    cmd = sys.argv[1]
-    args = sys.argv[2:]
+    cmd = sys.argv[2]
+    args = sys.argv[3:]
     retval = loop.run_until_complete(main(neo, cmd, args))
     loop.close()
     sys.exit(retval)

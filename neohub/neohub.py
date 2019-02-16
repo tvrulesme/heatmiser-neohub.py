@@ -369,7 +369,7 @@ class NeoHub(object):
             if merged["DEVICE_TYPE"] == 0:
                 # offline therm?
                 pass
-            elif merged["DEVICE_TYPE"] == 1:
+            elif merged["DEVICE_TYPE"] == 1 or merged["DEVICE_TYPE"] == 7 or merged["DEVICE_TYPE"] == 12:
                 if name not in self._neostats:
                     self._neostats[name] = NeoStat(self, name)
             elif merged["DEVICE_TYPE"] == 6:
