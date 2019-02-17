@@ -17,6 +17,9 @@ class NeoStat(NeoDevice):
     def __repr__(self):
         return "<NeoStat id=%-2d temp=%0.1f frost=%s name='%s'>" % (self['id'], self.current_temperature(), self.is_frosted(), self.name)
 
+    def id(self):
+        return self['id']
+
     def current_temperature(self):
         """Gets current temperature as measured at the thermostat"""
         return float(self["CURRENT_TEMPERATURE"])
