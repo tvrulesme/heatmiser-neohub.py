@@ -13,6 +13,7 @@ import time
 import logging.handlers as handlers
 from requests import ReadTimeout, ConnectTimeout, HTTPError, Timeout, ConnectionError
 import jsonpickle
+import mysql.connector
 
 
 logger = logging.getLogger("Heatmiser-MQTT-Log")
@@ -22,7 +23,7 @@ def setup_logger():
     logger.setLevel(logging.INFO)
     formatter = logging.Formatter(fmt='%(asctime)s %(levelname)-8s %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
 
-    fileHandler = handlers.TimedRotatingFileHandler('yale-mqtt.log', when='D', interval=1, backupCount=1)
+    fileHandler = handlers.TimedRotatingFileHandler('heatmiser-mqtt.log', when='D', interval=1, backupCount=1)
     fileHandler.setFormatter(formatter)
     logger.addHandler(fileHandler)
 
@@ -34,7 +35,7 @@ def on_connect(client, userdata, flags, rc):
  
     if rc == 0:
  
-        logger.info("Connected to broker")
+        logger.debug("Connected to broker")
 
         global Connected                #Use global variable
         Connected = True                #Signal connection 
@@ -140,6 +141,10 @@ if __name__ == '__main__':
     parser.add_argument('-u', '--user', help='User for MQTT Broker (Required)', required=True)
     parser.add_argument('-pw', '--password', help='Password for MQTT Broker (Required)', required=True)
     parser.add_argument('-ni', '--neoip', help='Ip address for Neo Hub (Required)', required=True)
+    parser.add_argument('-mh', '--mysqlhost', help='Ip address for MySQL (Required)', required=True)
+    parser.add_argument('-md', '--mysqldb', help='Database for MySQL (Required)', required=True)
+    parser.add_argument('-mu', '--mysqluser', help='User for MySQL (Required)', required=True)
+    parser.add_argument('-mp', '--mysqlpass', help='Password for MySQL (Required)', required=True)
     
     args = vars(parser.parse_args())
     
@@ -161,11 +166,19 @@ if __name__ == '__main__':
     loop = asyncio.get_event_loop()
     neo = NeoHub(neoip, 4242)
     
+    mydb = mysql.connector.connect(
+      host=args['mysqlhost'],
+      user=args['mysqluser'],
+      passwd=args['mysqlpass'],
+      database=args['mysqldb']
+    )
+    
     
     try:
         while True:
             #print('getting status')
             retval = loop.run_until_complete(main(neo, "list", args))
+            mycursor = mydb.cursor()
             
             data = {}  
             for name in retval:
@@ -179,29 +192,21 @@ if __name__ == '__main__':
                     'frost': ns.is_frosted()
                 })
                 
-                #print(ns.current_temperature())
-                #print(vars(ns))
-                #print(jsonpickle.encode(data))
-                #print("")
+                sql = "INSERT INTO readings (thermoid, name, temperature, heating, frost) VALUES (%s, %s, %s, %s, %s)"
+                val = (ns.id(), name, ns.current_temperature(), ns.currently_heating(), ns.is_frosted())
+                mycursor.execute(sql, val)
                 
-                
-                
-            #print(status)
-            #print(statetopic)
             jsonData = jsonpickle.encode(data)
             logger.info(jsonData)
             
             client.publish('heating/state',jsonData)
+            mydb.commit()
             time.sleep(60)# sleep for 5 seconds before next call
      
     except KeyboardInterrupt:
         print ("exiting")
         client.disconnect()
         client.loop_stop()
-    
-    #start the loop
-
-    
 
     cmd = sys.argv[2]
     args = sys.argv[3:]
